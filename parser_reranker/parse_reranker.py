@@ -33,8 +33,25 @@ def train(model, train_loader, experiment, hyperparams):
 
     # TODO: Write training loop
     model = model.train()
+    loss_func = nn.CrossEntropyLoss(ignore_index=0)
+    optimizer = optim.Adam(model.parameters(), lr=hyperparams["learning_rate"])
     with experiment.train():
-        pass
+        for epoch in range(hyperparams["num_epochs"]):
+            print("training for epoch", epoch)
+            for batch in tqdm(train_loader):
+                data = batch["data"].to(device)
+                label = batch["label"].to(device)
+                length = batch["length"].to(device)
+
+                logits = mode[data]
+                pred = torch.flatten(logits, start_dim=0, end_dim=1)
+                label = torch.flatten(label)
+
+                optimizer.zero_grad()
+                loss = loss_func(pred, label)
+                loss.backward()
+                optimizer.step()
+                experiment.log_metric("loss", loss)
 
 
 def validate(model, validate_loader, experiment, hyperparams):
@@ -54,6 +71,7 @@ def validate(model, validate_loader, experiment, hyperparams):
     # TODO: Write validating loop
     model = model.eval()
     with experiment.validate():
+        perplexity = 0
         print("perplexity:", perplexity)
         experiment.log_metric("perplexity", perplexity)
 
@@ -104,6 +122,14 @@ if __name__ == "__main__":
 
     # TODO: Load dataset
     # Hint: Use random_split to split dataset into train and validate datasets
+    train_dataset = ParsingDataset(args.train_file)
+    validate_size = len(train_dataset) // 10
+    train_size = len(train_dataset) - validate_size
+    train_set, validate_set = random_split(train_dataset, [train_size, validate_size])
+    train_loader = DataLoader(train_set, batch_size=hyperparams["batch_size"], shuffle=True)
+    validate_loader = DataLoader(validate_set, batch_size=hyperparams["batch_size"], shuffle=True)
+
+    test_dataset = RerankingDataset(args.parse_file, args.gold_file, train_dataset.word2id)
 
     model = LSTMLM(
         vocab_size,
@@ -126,3 +152,5 @@ if __name__ == "__main__":
     if args.save:
         print("saving model...")
         torch.save(model.state_dict(), './model.pt')
+
+    experiment.end()

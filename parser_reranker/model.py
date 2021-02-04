@@ -17,8 +17,16 @@ class LSTMLM(nn.Module):
         """
         super().__init__()
         # TODO: initialize the vocab_size, rnn_size, embedding_size
+        self.vocab_size = vocab_size
+        self.rnn_size = rnn_size
+        self.embedding_size = embedding_size
 
         # TODO: initialize embeddings, LSTM, and linear layers
+        # embedding -> LSTM -> dropout -> logits
+        self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=embedding_size, padding_idx=0)
+        self.lstm = nn.LSTM(input_size=embedding_size, hidden_size=rnn_size, num_layers=1, batch_first=True, dropout=0.2, bias=True)
+        self.logits = nn.Linear(in_features=rnn_size, out_features=vocab_size, bias=True)
+        # self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, inputs, lengths):
 
@@ -33,5 +41,14 @@ class LSTMLM(nn.Module):
         """
         # TODO: write forward propagation
 
-        # make sure you use pack_padded_sequence and pad_padded_sequence to
+        # make sure you use pack_padded_sequence and pad_packed_sequence to
         # reduce calculation
+        total_length = inputs.shape[1]
+
+        embedding = self.embedding(inputs)
+        packed_seq = pack_padded_sequence(input=embedding, lengths=lengths, batch_first=True, enforce_sorted=False)
+        tmp_output = self.lstm(packed_seq)
+        seq, lengths_unpacked = pad_packed_sequence(sequence=tmp_output, batch_first=True, total_length=total_length)
+        logits = self.logits(seq)
+        # return self.softmax(logits)
+        return logits

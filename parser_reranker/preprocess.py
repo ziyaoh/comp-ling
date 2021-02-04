@@ -2,7 +2,12 @@ from torch.utils.data import Dataset
 from torch.nn.utils.rnn import pad_sequence
 import torch
 import numpy as np
+from collections import Counter
 
+PAD = "PAD"
+START = "START"
+UNK = "UNK_"
+STOP = "STOP"
 
 class ParsingDataset(Dataset):
     def __init__(self, input_file):
@@ -23,6 +28,38 @@ class ParsingDataset(Dataset):
         #       and make sure you pad your inputs.
 
         # Hint: remember to add start and pad to create inputs and labels
+        self.word2id = dict()
+        self.word2id[PAD] = 0
+        self.word2id[START] = 1
+        self.word2id[UNK] = 2
+
+        with open(input_file, "r") as f:
+            sentences = f.readlines()
+
+        sentences = [sent.strip().split() for sent in sentences]
+        for sentence in sentences:
+            for token in sentence:
+                if token not in self.word2id:
+                    self.word2id[token] = len(self.word2id)
+
+        self.all_data = list()
+        self.all_label = list()
+        self.all_length = list()
+        for sentence in sentences:
+            data, label = list(), list()
+            data.append(self.word2id[START])
+            for token in sentence:
+                tid = self.word2id[token]
+                data.append(tid)
+                label.append(tid)
+            data.pop()
+
+            self.all_length.append(len(data))
+            self.all_data.append(torch.LongTensor(data))
+            self.all_label.append(torch.LongTensor(tid))
+
+        self.all_data = pad_sequence(self.all_data, batch_first=True, padding_value=0)
+        self.all_label = pad_sequence(self.all_label, batch_first=True, padding_value=0)
 
     def __len__(self):
         """
@@ -31,7 +68,7 @@ class ParsingDataset(Dataset):
         :return: an integer length of the dataset
         """
         # TODO: Override method to return length of dataset
-        pass
+        return len(self.all_data)
 
     def __getitem__(self, idx):
         """
@@ -42,7 +79,11 @@ class ParsingDataset(Dataset):
         :return: tuple or dictionary of the data
         """
         # TODO: Override method to return the items in dataset
-        pass
+        return {
+            "data": self.all_data[idx],
+            "label": self.all_label[idx],
+            "length": self.all_length[idx],
+        }
 
 
 class RerankingDataset(Dataset):
@@ -57,7 +98,51 @@ class RerankingDataset(Dataset):
         :param word2id: the previous mapping (dictionary) from word to its word
                         id
         """
-        pass
+        with open(parse_file, "r") as f:
+            lines = f.readlines()
+
+        self.batches = list()
+        for line in lines:
+            line = line.strip()
+            if line.isdigit():
+                self.batches.append({
+                    "datas": [],
+                    "labels": [],
+                    "lengths": [],
+                    "parsing_res": [],
+                    "num_gold": -1,
+                })
+                continue
+
+            batch_dict = self.batches[-1]
+            tokens = line.split()
+            data, label = list(), list()
+            data.append(word2id[START])
+            for token in tokens[2:]:
+                if token not in word2id:
+                    data.append(word2id[UNK])
+                    label.append(word2id[UNK])
+                else:
+                    data.append(word2id[token])
+                    label.append(word2id[token])
+            labels.append(word2id[STOP])
+
+            batch_dict["parsing_res"].append((int(tokens[0]), int(tokens[1])))
+            batch_dict["lengths"].append(len(data))
+            batch_dict["datas"].append(torch.LongTensor(data))
+            batch_dict["labels"].append(torch.LongTensor(label))
+
+        for batch_dict in self.batches:
+            batch_dict["datas"] = pad_sequence(batch_dict["datas"], batch_dict=True)
+            batch_dict["labels"] = pad_sequence(batch_dict["labels"], batch_dict=True)
+
+        with open(gold_file, "r") as f:
+            lines = f.readlines()
+
+        assert(len(lines) == len(self.batches))
+        for batch_dict, line in zip(self.batches, lines):
+            line = line.strip()
+            batch_dict["num_gold"] = Counter(line)["("]
 
     def __len__(self):
         """
@@ -66,7 +151,7 @@ class RerankingDataset(Dataset):
         :return: an integer length of the dataset
         """
         # TODO: Override method to return length of dataset
-        pass
+        return len(self.batches)
 
     def __getitem__(self, idx):
         """
@@ -77,4 +162,4 @@ class RerankingDataset(Dataset):
         :return: tuple or dictionary of the data
         """
         # TODO: Override method to return the items in dataset
-        pass
+        return self.batches[idx]
