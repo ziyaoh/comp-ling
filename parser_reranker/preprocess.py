@@ -56,10 +56,10 @@ class ParsingDataset(Dataset):
 
             self.all_length.append(len(data))
             self.all_data.append(torch.LongTensor(data))
-            self.all_label.append(torch.LongTensor(tid))
+            self.all_label.append(torch.LongTensor(label))
 
-        self.all_data = pad_sequence(self.all_data, batch_first=True, padding_value=0)
-        self.all_label = pad_sequence(self.all_label, batch_first=True, padding_value=0)
+        self.all_data = pad_sequence(self.all_data, batch_first=True, padding_value=self.word2id[PAD])
+        self.all_label = pad_sequence(self.all_label, batch_first=True, padding_value=self.word2id[PAD])
 
     def __len__(self):
         """
@@ -125,7 +125,7 @@ class RerankingDataset(Dataset):
                 else:
                     data.append(word2id[token])
                     label.append(word2id[token])
-            labels.append(word2id[STOP])
+            label.append(word2id[STOP])
 
             batch_dict["parsing_res"].append((int(tokens[0]), int(tokens[1])))
             batch_dict["lengths"].append(len(data))
@@ -133,8 +133,8 @@ class RerankingDataset(Dataset):
             batch_dict["labels"].append(torch.LongTensor(label))
 
         for batch_dict in self.batches:
-            batch_dict["datas"] = pad_sequence(batch_dict["datas"], batch_dict=True)
-            batch_dict["labels"] = pad_sequence(batch_dict["labels"], batch_dict=True)
+            batch_dict["datas"] = pad_sequence(batch_dict["datas"], batch_first=True, padding_value=word2id[PAD])
+            batch_dict["labels"] = pad_sequence(batch_dict["labels"], batch_first=True, padding_value=word2id[PAD])
 
         with open(gold_file, "r") as f:
             lines = f.readlines()

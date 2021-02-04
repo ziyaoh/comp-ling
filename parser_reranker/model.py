@@ -24,7 +24,7 @@ class LSTMLM(nn.Module):
         # TODO: initialize embeddings, LSTM, and linear layers
         # embedding -> LSTM -> dropout -> logits
         self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=embedding_size, padding_idx=0)
-        self.lstm = nn.LSTM(input_size=embedding_size, hidden_size=rnn_size, num_layers=1, batch_first=True, dropout=0.2, bias=True)
+        self.lstm = nn.GRU(input_size=embedding_size, hidden_size=rnn_size, num_layers=1, batch_first=True, bias=True)
         self.logits = nn.Linear(in_features=rnn_size, out_features=vocab_size, bias=True)
         # self.softmax = nn.Softmax(dim=-1)
 
@@ -47,8 +47,8 @@ class LSTMLM(nn.Module):
 
         embedding = self.embedding(inputs)
         packed_seq = pack_padded_sequence(input=embedding, lengths=lengths, batch_first=True, enforce_sorted=False)
-        tmp_output = self.lstm(packed_seq)
-        seq, lengths_unpacked = pad_packed_sequence(sequence=tmp_output, batch_first=True, total_length=total_length)
+        tmp_output, _ = self.lstm(packed_seq)
+        seq, _ = pad_packed_sequence(sequence=tmp_output, batch_first=True, total_length=total_length)
         logits = self.logits(seq)
         # return self.softmax(logits)
         return logits

@@ -11,11 +11,11 @@ from tqdm import tqdm  # optional progress bar
 
 # TODO: Set hyperparameters
 hyperparams = {
-    "rnn_size": None,
-    "embedding_size": None,
-    "num_epochs": None,
-    "batch_size": None,
-    "learning_rate": None
+    "rnn_size": 128,
+    "embedding_size": 64,
+    "num_epochs": 2,
+    "batch_size": 32,
+    "learning_rate": 0.01
 }
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -43,7 +43,7 @@ def train(model, train_loader, experiment, hyperparams):
                 label = batch["label"].to(device)
                 length = batch["length"].to(device)
 
-                logits = mode[data]
+                logits = model(data, length)
                 pred = torch.flatten(logits, start_dim=0, end_dim=1)
                 label = torch.flatten(label)
 
@@ -51,7 +51,7 @@ def train(model, train_loader, experiment, hyperparams):
                 loss = loss_func(pred, label)
                 loss.backward()
                 optimizer.step()
-                experiment.log_metric("loss", loss)
+                experiment.log_metric("loss", loss.detach())
 
 
 def validate(model, validate_loader, experiment, hyperparams):
@@ -122,6 +122,8 @@ if __name__ == "__main__":
 
     # TODO: Load dataset
     # Hint: Use random_split to split dataset into train and validate datasets
+    print("start loading data...")
+
     train_dataset = ParsingDataset(args.train_file)
     validate_size = len(train_dataset) // 10
     train_size = len(train_dataset) - validate_size
@@ -130,7 +132,9 @@ if __name__ == "__main__":
     validate_loader = DataLoader(validate_set, batch_size=hyperparams["batch_size"], shuffle=True)
 
     test_dataset = RerankingDataset(args.parse_file, args.gold_file, train_dataset.word2id)
+    print("done loading data")
 
+    vocab_size = len(train_dataset.word2id)
     model = LSTMLM(
         vocab_size,
         hyperparams["rnn_size"],
