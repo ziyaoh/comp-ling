@@ -71,7 +71,19 @@ def validate(model, validate_loader, experiment, hyperparams):
     # TODO: Write validating loop
     model = model.eval()
     with experiment.validate():
-        perplexity = 0
+        for batch in tqdm(train_loader):
+            data = batch["data"].to(device)
+            label = batch["label"].to(device)
+            length = batch["length"].to(device)
+
+            logits = model(data, length)
+            pred = torch.flatten(logits, start_dim=0, end_dim=1)
+            label = torch.flatten(label)
+
+            loss = loss_func(pred, label).detach()
+            total_loss += loss
+
+        perplexity = torch.exp(total_loss / len(validate_loader))
         print("perplexity:", perplexity)
         experiment.log_metric("perplexity", perplexity)
 
@@ -88,9 +100,29 @@ def test(model, test_dataset, experiment, hyperparams):
     # TODO: Write testing loops
     model = model.eval()
     with experiment.test():
-        precision = None
-        recall = None
-        f1 = None
+        num_correct, num_parsed, num_gold = 0, 0, 0
+        for idx in range(len(test_dataset)):
+            batch = test_dataset[idx]
+            data = batch["datas"].to(device)
+            label = batch["labels"].to(device)
+            length = batch["lengths"].to(device)
+            parsing_res = batch["parsing_res"]
+
+            logits = model(data, length).detach()
+            prob = F.softmax(logits, dim=-1)
+
+            selected_prob = torch.gather(input=prob, dim=2, index=label.unsqueeze(2)).squeeze(2)
+            mask = (y != 0) * torch.ones([y.shape[0], y.shape[1]]).to(device)
+            final_prob = torch.sum((- torch.log(selected_prob) * mask), 1)
+            chosen = torch.argmax(-final_prob)
+
+            num_correct += parsing_res[chosen][0]
+            num_parsed += parsing_res[chosen][0]
+            num_gold += batch["num_gold"]
+
+        precision = num_correct / num_parsed
+        recall = num_correct / num_gold
+        f1 = 2 * precision * recall / (precision + recall)
         print("precision:", precision)
         print("recall:", recall)
         print("F1:", f1)
