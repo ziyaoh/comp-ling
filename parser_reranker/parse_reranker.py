@@ -11,7 +11,7 @@ from tqdm import tqdm  # optional progress bar
 
 # TODO: Set hyperparameters
 hyperparams = {
-    "rnn_size": 128,
+    "rnn_size": 64,
     "embedding_size": 64,
     "num_epochs": 2,
     "batch_size": 32,

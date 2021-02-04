@@ -2,12 +2,13 @@ from torch.utils.data import Dataset
 from torch.nn.utils.rnn import pad_sequence
 import torch
 import numpy as np
-from collections import Counter
+from collections import Counter, defaultdict
 
 PAD = "PAD"
 START = "START"
 UNK = "UNK_"
 STOP = "STOP"
+unk_threshold = 5
 
 class ParsingDataset(Dataset):
     def __init__(self, input_file):
@@ -36,11 +37,15 @@ class ParsingDataset(Dataset):
         with open(input_file, "r") as f:
             sentences = f.readlines()
 
+        count = defaultdict(int)
         sentences = [sent.strip().split() for sent in sentences]
         for sentence in sentences:
             for token in sentence:
-                if token not in self.word2id:
-                    self.word2id[token] = len(self.word2id)
+                count[token] += 1
+
+        for token, num in count.items():
+            if token not in self.word2id and num >= unk_threshold:
+                self.word2id[token] = len(self.word2id)
 
         self.all_data = list()
         self.all_label = list()
@@ -49,7 +54,7 @@ class ParsingDataset(Dataset):
             data, label = list(), list()
             data.append(self.word2id[START])
             for token in sentence:
-                tid = self.word2id[token]
+                tid = self.word2id[token] if token in self.word2id else self.word2id[UNK]
                 data.append(tid)
                 label.append(tid)
             data.pop()
