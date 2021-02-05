@@ -7,13 +7,15 @@ from torch.nn import functional as F
 import torch
 import numpy as np
 import argparse
+import random
+import os
 from tqdm import tqdm  # optional progress bar
 
 # TODO: Set hyperparameters
 hyperparams = {
     "rnn_size": 64,
     "embedding_size": 64,
-    "num_epochs": 2,
+    "num_epochs": 1,
     "batch_size": 32,
     "learning_rate": 0.01
 }
@@ -64,14 +66,14 @@ def validate(model, validate_loader, experiment, hyperparams):
     :param hyperparams: hyperparameters dictionary
     """
     # TODO: Define loss function, total loss, and total word count
-    loss_fn = nn.CrossEntropyLoss(ignore_index=0)
+    loss_fn = nn.CrossEntropyLoss(ignore_index=0, reduction="sum")
     total_loss = 0
     word_count = 0
 
     # TODO: Write validating loop
     model = model.eval()
     with experiment.validate():
-        for batch in tqdm(train_loader):
+        for batch in tqdm(validate_loader):
             data = batch["data"].to(device)
             label = batch["label"].to(device)
             length = batch["length"].to(device)
@@ -80,10 +82,11 @@ def validate(model, validate_loader, experiment, hyperparams):
             pred = torch.flatten(logits, start_dim=0, end_dim=1)
             label = torch.flatten(label)
 
-            loss = loss_func(pred, label).detach()
+            loss = loss_fn(pred, label).detach()
             total_loss += loss
+            word_count += torch.sum(length)
 
-        perplexity = torch.exp(total_loss / len(validate_loader))
+        perplexity = torch.exp(total_loss / word_count)
         print("perplexity:", perplexity)
         experiment.log_metric("perplexity", perplexity)
 
@@ -101,8 +104,7 @@ def test(model, test_dataset, experiment, hyperparams):
     model = model.eval()
     with experiment.test():
         num_correct, num_parsed, num_gold = 0, 0, 0
-        for idx in range(len(test_dataset)):
-            batch = test_dataset[idx]
+        for batch in tqdm(test_dataset):
             data = batch["datas"].to(device)
             label = batch["labels"].to(device)
             length = batch["lengths"].to(device)
@@ -112,12 +114,15 @@ def test(model, test_dataset, experiment, hyperparams):
             prob = F.softmax(logits, dim=-1)
 
             selected_prob = torch.gather(input=prob, dim=2, index=label.unsqueeze(2)).squeeze(2)
-            mask = (y != 0) * torch.ones([y.shape[0], y.shape[1]]).to(device)
+            mask = (label != 0) * torch.ones([label.shape[0], label.shape[1]]).to(device)
             final_prob = torch.sum((- torch.log(selected_prob) * mask), 1)
             chosen = torch.argmax(-final_prob)
 
+            ########################### randome baseline ###########################
+            # chosen = random.randint(0, len(parsing_res) - 1)
+
             num_correct += parsing_res[chosen][0]
-            num_parsed += parsing_res[chosen][0]
+            num_parsed += parsing_res[chosen][1]
             num_gold += batch["num_gold"]
 
         precision = num_correct / num_parsed
@@ -154,8 +159,7 @@ if __name__ == "__main__":
 
     # TODO: Load dataset
     # Hint: Use random_split to split dataset into train and validate datasets
-    print("start loading data...")
-
+    print("loading dataset...")
     train_dataset = ParsingDataset(args.train_file)
     validate_size = len(train_dataset) // 10
     train_size = len(train_dataset) - validate_size
@@ -164,7 +168,6 @@ if __name__ == "__main__":
     validate_loader = DataLoader(validate_set, batch_size=hyperparams["batch_size"], shuffle=True)
 
     test_dataset = RerankingDataset(args.parse_file, args.gold_file, train_dataset.word2id)
-    print("done loading data")
 
     vocab_size = len(train_dataset.word2id)
     model = LSTMLM(

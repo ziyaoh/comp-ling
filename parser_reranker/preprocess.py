@@ -8,7 +8,7 @@ PAD = "PAD"
 START = "START"
 UNK = "UNK_"
 STOP = "STOP"
-unk_threshold = 5
+unk_threshold = 10
 
 class ParsingDataset(Dataset):
     def __init__(self, input_file):
@@ -140,14 +140,15 @@ class RerankingDataset(Dataset):
         for batch_dict in self.batches:
             batch_dict["datas"] = pad_sequence(batch_dict["datas"], batch_first=True, padding_value=word2id[PAD])
             batch_dict["labels"] = pad_sequence(batch_dict["labels"], batch_first=True, padding_value=word2id[PAD])
+            batch_dict["lengths"] = torch.LongTensor(batch_dict["lengths"])
 
         with open(gold_file, "r") as f:
-            lines = f.readlines()
+            gold_lines = f.readlines()
 
-        assert(len(lines) == len(self.batches))
-        for batch_dict, line in zip(self.batches, lines):
-            line = line.strip()
-            batch_dict["num_gold"] = Counter(line)["("]
+        assert(len(gold_lines) == len(self.batches))
+        for batch_dict, gold_line in zip(self.batches, gold_lines):
+            gold_line = gold_line.strip()
+            batch_dict["num_gold"] = Counter(gold_line)["("]
 
     def __len__(self):
         """
