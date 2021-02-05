@@ -1,0 +1,56 @@
+comet.ml project: https://www.comet.ml/fxgtqr5z/parse-reranker/view/new
+
+For this final submission, my model utilizes single LSTM layer, with the following hyperparameters
+
+hyperparams = {
+    "rnn_size": 64,
+    "embedding_size": 64,
+    "num_epochs": 1,
+    "batch_size": 32,
+    "learning_rate": 0.01
+}
+
+This default model achieved
+perplexity: 8.7803
+F1:         0.8633
+
+train/validation hash:  84c5fb80301c4b4f9bc054e70ed6a182
+test hash:              ff1ba3bb2fe74460a9e0884b66d494e7
+
+Experiments:
+
+1. I changed rnn size to 128, with everything else as default.
+This model took about 60% more time to train, but achieved slightly better metrics.
+
+perplexity: 7.9664
+F1:         0.8585
+
+train hash: 5bb2fdc0e04a4326aee179c3e5cf46d9
+test hash:  c64e0d3161d44a9cb597b215159339c5
+
+2. I chose learning rate as 0.05, with everythingelse as default.
+The resulting performance is slightly worse than the default learning rate. This could mean that the 0.05 learning rate is too large, making the learning overshotting around the optimal weights.
+
+perplexity: 11.0091
+F1:         0.8498
+
+train hash: 241e85371d2a4093bcb52c75c245b126
+test hash:  96f210ffb536480583525965502d45cc
+
+3. I also tried 0.005 for learning rate.
+The result is better than 0.05 learning rate, but still not as good as the default one.
+
+perplexity: 9.9280
+F1:         0.8494
+
+train hash: 401e92ec24024f8c90ebef63603c0427
+test hash:  0155357ffb0b4c0382297b7d14f77326
+
+4. I switched LSTM layer to GRU, with other parameters as default.
+This GRU model is comparable to the default LSTM model.
+
+perplexity: 8.7501
+F1:         0.8567
+
+train hash: 2f7c950e48ef4eab809c16fddec7fbfb
+test hash:  a6bb5aa284634ef6b0929af74d05a9f8
