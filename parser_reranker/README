@@ -17,6 +17,10 @@ F1:         0.8633
 train/validation hash:  84c5fb80301c4b4f9bc054e70ed6a182
 test hash:              ff1ba3bb2fe74460a9e0884b66d494e7
 
+Since the dataset is relately small, I don't need a very large model to learn it, so I just used a single layer LSTM with 64 RNN size. The training loss tends to converge within one epoch of training, so I just train the model with one epoch.
+
+To compute the probability of a parse tree, I first feed the tokens to my model, which then, after softmax, generates a probability distribution over vocabulary for each word position. I then look at the true label for each position, pick their corresponding probability from the output prob distribution. Finally taking log of each probability and summing them all up would give me the log of probability of that particular parse tree.
+
 Experiments:
 
 1. I changed rnn size to 128, with everything else as default.
