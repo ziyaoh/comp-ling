@@ -153,9 +153,6 @@ if __name__ == "__main__":
                         help="run testing loop")
     args = parser.parse_args()
 
-    # TODO: Make sure you modify the `.comet.config` file
-    experiment = Experiment(log_code=False)
-    experiment.log_parameters(hyperparams)
 
     # TODO: Load dataset
     # Hint: Use random_split to split dataset into train and validate datasets
@@ -176,6 +173,10 @@ if __name__ == "__main__":
         hyperparams["embedding_size"]
     ).to(device)
 
+    # TODO: Make sure you modify the `.comet.config` file
+    experiment = Experiment(log_code=False)
+    experiment.log_parameters(hyperparams)
+
     if args.load:
         print("loading saved model...")
         model.load_state_dict(torch.load('./model.pt'))
@@ -187,6 +188,9 @@ if __name__ == "__main__":
         validate(model, validate_loader, experiment, hyperparams)
     if args.test:
         print("testing reranker...")
+        experiment.end()
+        experiment = Experiment(log_code=False)
+        experiment.log_parameters(hyperparams)
         test(model, test_dataset, experiment, hyperparams)
     if args.save:
         print("saving model...")

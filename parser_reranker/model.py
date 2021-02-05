@@ -24,7 +24,7 @@ class LSTMLM(nn.Module):
         # TODO: initialize embeddings, LSTM, and linear layers
         # embedding -> LSTM -> dropout -> logits
         self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=embedding_size, padding_idx=0)
-        self.lstm = nn.GRU(input_size=embedding_size, hidden_size=rnn_size, num_layers=1, batch_first=True, bias=True)
+        self.lstm = nn.LSTM(input_size=embedding_size, hidden_size=rnn_size, num_layers=1, batch_first=True, bias=True)
         self.logits = nn.Linear(in_features=rnn_size, out_features=vocab_size, bias=True)
         # self.softmax = nn.Softmax(dim=-1)
 
