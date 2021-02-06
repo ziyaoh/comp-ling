@@ -42,10 +42,8 @@ class ParsingDataset(Dataset):
         for sentence in sentences:
             for token in sentence:
                 count[token] += 1
-
-        for token, num in count.items():
-            if token not in self.word2id and num >= unk_threshold:
-                self.word2id[token] = len(self.word2id)
+                if count[token] >= unk_threshold and token not in self.word2id:
+                    self.word2id[token] = len(self.word2id)
 
         self.all_data = list()
         self.all_label = list()
