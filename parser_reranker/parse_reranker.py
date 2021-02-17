@@ -188,9 +188,6 @@ if __name__ == "__main__":
         validate(model, validate_loader, experiment, hyperparams)
     if args.test:
         print("testing reranker...")
-        experiment.end()
-        experiment = Experiment(log_code=False)
-        experiment.log_parameters(hyperparams)
         test(model, test_dataset, experiment, hyperparams)
     if args.save:
         print("saving model...")
