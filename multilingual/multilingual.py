@@ -1,6 +1,7 @@
 from comet_ml import Experiment
 from preprocess import preprocess_vanilla, TranslationDataset, read_from_corpus
 from model import Seq2Seq
+
 from torch.utils.data import DataLoader, random_split, ConcatDataset
 from torch import nn, optim
 from torch.nn import functional as F
@@ -11,9 +12,9 @@ from tqdm import tqdm  # optional progress bar
 
 # TODO: Set hyperparameters
 hyperparams = {
-    "rnn_size": 128,  # assuming encoder and decoder use the same rnn_size
+    "rnn_size": 256,  # assuming encoder and decoder use the same rnn_size
     "embedding_size": 128,
-    "num_epochs": 2,
+    "num_epochs": 3,
     "batch_size": 64,
     "learning_rate": 0.001, 
 }
@@ -54,7 +55,7 @@ def train(model, train_loader, experiment, hyperparams, bpe):
                 loss = loss_func(pred, label)
                 loss.backward()
                 optimizer.step()
-                experiment.log_metric("loss", loss.detach())
+                experiment.log_metric("loss", loss.detach().cpu())
 
 
 def test(model, test_loader, experiment, hyperparams, bpe):
@@ -101,10 +102,10 @@ def test(model, test_loader, experiment, hyperparams, bpe):
             total_pred += torch.sum(mask)
 
         perplexity = torch.exp(total_loss / word_count)
-        accuracy = correct_pred / total_pred
+        accuracy = int(correct_pred) / int(total_pred)
         print("perplexity:", perplexity)
-        print("accuracy:", accuracy)
-        experiment.log_metric("perplexity", perplexity)
+        print("accuracy: {}/{}={}".format(correct_pred, total_pred, accuracy))
+        experiment.log_metric("perplexity", perplexity.cpu())
         experiment.log_metric("accuracy", accuracy)
 
 

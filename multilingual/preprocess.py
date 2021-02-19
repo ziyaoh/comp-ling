@@ -12,7 +12,7 @@ PAD = "PAD"
 START = "START"
 STOP = "STOP"
 UNK = "UNK"
-unk_threshold = 5
+unk_threshold = 4
 
 class TranslationDataset(Dataset):
     def __init__(self, input_file, enc_seq_len, dec_seq_len,
