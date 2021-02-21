@@ -8,6 +8,10 @@ import re
 from collections import defaultdict
 from tqdm import tqdm  # optional progress bar
 
+PAD = "PAD"
+START = "START"
+STOP = "STOP"
+UNK = "UNK"
 
 class TranslationDataset(Dataset):
     def __init__(self, input_file, enc_seq_len, dec_seq_len,
@@ -35,6 +39,70 @@ class TranslationDataset(Dataset):
         #       and make sure you pad your inputs.
 
         # Hint: remember to add start and pad to create inputs and labels
+        if word2id:
+            self.word2id = word2id
+        else:
+            self.word2id = dict()
+            self.word2id[PAD] = 0
+            self.word2id[START] = 1
+            self.word2id[STOP] = 2
+            self.word2id[UNK] = 3
+
+        self.all_eng_data = list()
+        self.all_oth_data = list()
+        self.all_label = list()
+        self.all_eng_length = list()
+        self.all_oth_length = list()
+
+        if target:
+            english, other = read_from_corpus(input_file)
+            english = [[target] + line for line in english]
+
+        else:
+            english, other = read_from_corpus(input_file)
+
+        # word to wordid
+        for line in english:
+            for word in line:
+                if word not in self.word2id:
+                    self.word2id[word] = len(self.word2id)
+        for line in other:
+            for word in line:
+                if word not in self.word2id:
+                    self.word2id[word] = len(self.word2id)
+
+        # data and label
+        for sentence in other:
+            data, label = list(), list()
+            data.append(self.word2id[START])
+            for token in sentence:
+                tid = self.word2id[token]
+                data.append(tid)
+                label.append(tid)
+            label.append(self.word2id[STOP])
+            if target:
+                data += [0] * (dec_seq_len - len(data))
+                label += [0] * (dec_seq_len - len(label))
+
+            self.all_oth_length.append(len(data))
+            self.all_oth_data.append(torch.LongTensor(data))
+            self.all_label.append(torch.LongTensor(label))
+        for sentence in english:
+            data = list()
+            for token in sentence:
+                tid = self.word2id[token]
+                data.append(tid)
+            data.append(self.word2id[STOP])
+            if target:
+                data += [0] * (enc_seq_len - len(data))
+
+            self.all_eng_length.append(len(data))
+            self.all_eng_data.append(torch.LongTensor(data))
+
+        if not target:
+            self.all_eng_data = pad_sequence(self.all_eng_data, batch_first=True, padding_value=0)
+            self.all_oth_data = pad_sequence(self.all_oth_data, batch_first=True, padding_value=0)
+            self.all_label = pad_sequence(self.all_label, batch_first=True, padding_value=0)
 
     def __len__(self):
         """
@@ -43,7 +111,7 @@ class TranslationDataset(Dataset):
         :return: an integer length of the dataset
         """
         # TODO: Override method to return length of dataset
-        pass
+        return len(self.all_eng_data)
 
     def __getitem__(self, idx):
         """
@@ -56,7 +124,13 @@ class TranslationDataset(Dataset):
         :return: tuple or dictionary of the data
         """
         # TODO: Override method to return the items in dataset
-        pass
+        return {
+            "enc_data": self.all_eng_data[idx],
+            "dec_data": self.all_oth_data[idx],
+            "label": self.all_label[idx],
+            "enc_length": self.all_eng_length[idx],
+            "dec_length": self.all_oth_length[idx],
+        }
 
 
 def read_from_corpus(corpus_file):
