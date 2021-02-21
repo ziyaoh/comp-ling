@@ -13,9 +13,13 @@ START = "START"
 STOP = "STOP"
 UNK = "UNK"
 
+ENG_TAG = "<eng>"
+DEU_TAG = "<deu>"
+FRA_TAG = "<fra>"
+
 class TranslationDataset(Dataset):
     def __init__(self, input_file, enc_seq_len, dec_seq_len,
-                 bpe=True, target=None, word2id=None, flip=False):
+                 bpe=True, target=None, word2id=None, flip=False, zeroshot=False, test=False):
         """
         Read and parse the translation dataset line by line. Make sure you
         separate them on tab to get the original sentence and the target
@@ -39,6 +43,29 @@ class TranslationDataset(Dataset):
         #       and make sure you pad your inputs.
 
         # Hint: remember to add start and pad to create inputs and labels
+        if zeroshot: # deu -> eng -> fra
+            deu_file, fra_file = input_file
+
+            if test:
+                _, deu_lines = read_from_corpus(deu_file)
+                _, fra_lines = read_from_corpus(fra_file)
+                other = fra_lines
+                source = [[FRA_TAG] + line for line in deu_lines]
+
+            else:
+                eng_d, deu_lines = read_from_corpus(deu_file)
+                eng_f, fra_lines = read_from_corpus(fra_file)
+                other = fra_lines + eng_d
+                source = [[ENG_TAG] + line for line in deu_lines]
+                source += [[FRA_TAG] + line for line in eng_f]
+        else:
+            if target:
+                source, other = read_from_corpus(input_file)
+                source = [[target] + line for line in source]
+
+            else:
+                source, other = read_from_corpus(input_file)
+
         if word2id:
             self.word2id = word2id
         else:
@@ -48,21 +75,14 @@ class TranslationDataset(Dataset):
             self.word2id[STOP] = 2
             self.word2id[UNK] = 3
 
-        self.all_eng_data = list()
+        self.all_src_data = list()
         self.all_oth_data = list()
         self.all_label = list()
-        self.all_eng_length = list()
+        self.all_src_length = list()
         self.all_oth_length = list()
 
-        if target:
-            english, other = read_from_corpus(input_file)
-            english = [[target] + line for line in english]
-
-        else:
-            english, other = read_from_corpus(input_file)
-
         # word to wordid
-        for line in english:
+        for line in source:
             for word in line:
                 if word not in self.word2id:
                     self.word2id[word] = len(self.word2id)
@@ -87,7 +107,7 @@ class TranslationDataset(Dataset):
             self.all_oth_length.append(len(data))
             self.all_oth_data.append(torch.LongTensor(data))
             self.all_label.append(torch.LongTensor(label))
-        for sentence in english:
+        for sentence in source:
             data = list()
             for token in sentence:
                 tid = self.word2id[token]
@@ -96,11 +116,11 @@ class TranslationDataset(Dataset):
             if target:
                 data += [0] * (enc_seq_len - len(data))
 
-            self.all_eng_length.append(len(data))
-            self.all_eng_data.append(torch.LongTensor(data))
+            self.all_src_length.append(len(data))
+            self.all_src_data.append(torch.LongTensor(data))
 
         if not target:
-            self.all_eng_data = pad_sequence(self.all_eng_data, batch_first=True, padding_value=0)
+            self.all_src_data = pad_sequence(self.all_src_data, batch_first=True, padding_value=0)
             self.all_oth_data = pad_sequence(self.all_oth_data, batch_first=True, padding_value=0)
             self.all_label = pad_sequence(self.all_label, batch_first=True, padding_value=0)
 
@@ -111,7 +131,7 @@ class TranslationDataset(Dataset):
         :return: an integer length of the dataset
         """
         # TODO: Override method to return length of dataset
-        return len(self.all_eng_data)
+        return len(self.all_src_data)
 
     def __getitem__(self, idx):
         """
@@ -125,10 +145,10 @@ class TranslationDataset(Dataset):
         """
         # TODO: Override method to return the items in dataset
         return {
-            "enc_data": self.all_eng_data[idx],
+            "enc_data": self.all_src_data[idx],
             "dec_data": self.all_oth_data[idx],
             "label": self.all_label[idx],
-            "enc_length": self.all_eng_length[idx],
+            "enc_length": self.all_src_length[idx],
             "dec_length": self.all_oth_length[idx],
         }
 

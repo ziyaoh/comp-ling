@@ -13,7 +13,7 @@ from tqdm import tqdm  # optional progress bar
 hyperparams = {
     "rnn_size": 128,  # assuming encoder and decoder use the same rnn_size
     "embedding_size": 128,
-    "num_epochs": 2,
+    "num_epochs": 1,
     "batch_size": 64,
     "learning_rate": 0.001, 
 }
@@ -133,36 +133,52 @@ if __name__ == "__main__":
     # Hint: Use random_split to split dataset into train and validate datasets
     # Hint: Use ConcatDataset to concatenate datasets
     # Hint: Make sure encoding and decoding lengths match for the datasets
-    data_tags = list(zip(args.corpus_files, args.multilingual_tags))
-
-    data_tags = list(zip(args.corpus_files, args.multilingual_tags))
-    if len(data_tags) == 1:
-        dataset = TranslationDataset(data_tags[0][0], None, None, bpe=args.bpe)
-        if args.bpe:
-            vocab_size, output_size = len(dataset.word2id), len(dataset.word2id)
-        else:
-            vocab_size, output_size = len(dataset.src_word2id), len(dataset.eng_word2id)
+    if args.zeroshot:
+        train_deu, train_fra, test_deu, test_fra = args.corpus_files
+        train_set = TranslationDataset(
+            (train_deu, train_fra),
+            None, None,
+            zeroshot=True
+        )
+        word2id = train_set.word2id
+        test_set = TranslationDataset(
+            (test_deu, test_fra),
+            None, None,
+            word2id=word2id,
+            zeroshot=True,
+            test=True
+        )
+        vocab_size, output_size = len(word2id), len(word2id)
 
     else:
-        enc_seq_len, dec_seq_len = 0, 0
-        for corpus_file, _ in data_tags:
-            target, source = read_from_corpus(corpus_file)
-            enc_seq_len = max(enc_seq_len, max([len(line) for line in source]) + 2)
-            dec_seq_len = max(dec_seq_len, max([len(line) for line in source]) + 1)
+        data_tags = list(zip(args.corpus_files, args.multilingual_tags))
+        if len(data_tags) == 1:
+            dataset = TranslationDataset(data_tags[0][0], None, None, bpe=args.bpe)
+            if args.bpe:
+                vocab_size, output_size = len(dataset.word2id), len(dataset.word2id)
+            else:
+                vocab_size, output_size = len(dataset.src_word2id), len(dataset.eng_word2id)
 
-        sets = list()
-        word2id = None
-        for corpus_file, tag in data_tags:
-            dataset = TranslationDataset(corpus_file, enc_seq_len, dec_seq_len, bpe=args.bpe, target=tag, word2id=word2id)
-            sets.append(dataset)
-            word2id = dataset.word2id
-        vocab_size, output_size = len(word2id), len(word2id)
-        dataset = ConcatDataset(sets)
+        else:
+            enc_seq_len, dec_seq_len = 0, 0
+            for corpus_file, _ in data_tags:
+                target, source = read_from_corpus(corpus_file)
+                enc_seq_len = max(enc_seq_len, max([len(line) for line in source]) + 2)
+                dec_seq_len = max(dec_seq_len, max([len(line) for line in source]) + 1)
 
-    
-    test_size = len(dataset) // 10
-    train_size = len(dataset) - test_size
-    train_set, test_set = random_split(dataset, [train_size, test_size])
+            sets = list()
+            word2id = None
+            for corpus_file, tag in data_tags:
+                dataset = TranslationDataset(corpus_file, enc_seq_len, dec_seq_len, bpe=args.bpe, target=tag, word2id=word2id)
+                sets.append(dataset)
+                word2id = dataset.word2id
+            vocab_size, output_size = len(word2id), len(word2id)
+            dataset = ConcatDataset(sets)
+
+        test_size = len(dataset) // 10
+        train_size = len(dataset) - test_size
+        train_set, test_set = random_split(dataset, [train_size, test_size])
+
     train_loader = DataLoader(train_set, batch_size=hyperparams["batch_size"], shuffle=True)
     test_loader = DataLoader(test_set, batch_size=hyperparams["batch_size"], shuffle=True)
 
