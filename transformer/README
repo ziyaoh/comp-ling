@@ -1,7 +1,35 @@
 1. What are the benefits (and possibly disadvantages) of using a transformer network as opposed to an RNN network for language modeling?
 
+Transformer could process the whole sequence all at the same time, and therefore runs faster than a RNN network. Besides, Transformers don't suffer from the problem of forgetting long term information. On the other hand, Transformers are generally more complex than RNN networks, so they need more resources and data to train.
+
 2. What are the purposes of each of the three vectors (query, key, value) in Scaled Dot-Product Attention? (Hint: Think why they are named that way. How are they used to produce an attention-based output? Alternatively, if you are unsure about the query/key/value naming scheme but are instead more familiar with the traditional notation for attention mechanisms, you can explain in terms of those as well.)
+
+For each word, query stands for how much attention it wants to pay to all the meanings. It is used to extract the relevance of the current word against other words. Key represents the relevance between the current word and each meaning. The product of these two gives us the attention score each word pays to all other words. Value is added up based on the forementioned score to generate the context vector for the curernt word.
 
 3. What is the purpose of using multiple heads for attention, instead of just one? (Hint: the paper talks about this!)
 
+Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions, and therefore perform better than a single head does.
+
 4. What is the purpose of positional encoding, and why would a sinusoid function work for this purpose? Are there other functions that may work for this purpose as well?
+
+Positional encoding tells the Transformer about the relative position information of the words in a sequence, so that the model could learn to pay more attention to words closer-by than to words further-away. We use sinusoid functions because they are periodic and continuous, and their values are bounded between -1 and 1. I think any bounded periodic function should be able to do the work.
+
+
+Comet.ml link: https://www.comet.ml/fxgtqr5z/transformer/view/new
+hash: 0a2dda0c5f454dce83e17f63e0e5a6c1
+perplexity: 110.7
+
+hyper_params = {
+    "batch_size": 100,
+    "num_epochs": 3,
+    "learning_rate": 0.01,
+    "hidden_size": 128,
+    "embedding_size": 64,
+    "num_head": 4,
+    "dropout_rate": 0.1,
+    "num_layer": 2,
+}
+
+My transformer model is smaller than the one mentioned in the paper, because I think the dataset we are using is relatively smaller to train a complex model. So I reduced number of heads and number layers for my model. I used the same dropout rate as mentioned in the paper. The hidden size and the embedding size are inherited from my previous homeworks.
+
+For masking, I paded all the data to the same length in the preprocess step. Then I applied masking to each batch in my model on the fly. Specifically I just set all the values in the upper right triangle to be -float("inf").
