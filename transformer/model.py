@@ -97,7 +97,7 @@ class SingleAttention(nn.Module):
         # v = [batch size, seq len, d_k]
 
         weight = torch.bmm(k, q) // math.sqrt(self.d_k)
-        mask = torch.triu(torch.ones((seq_len, seq_len)), diagonal=1)
+        mask = torch.triu(torch.ones((seq_len, seq_len)), diagonal=1).bool()
         weight = weight.masked_fill(mask, -float("inf")).type_as(weight)
         # weight = [batch size, seq len, seq len]
 
@@ -144,8 +144,8 @@ class PositionalEncoder(nn.Module):
                 encode[:, i] = math.sin(tmp)
                 encode[:, i + 1] = math.cos(tmp)
                 
-        encode = encode.unsqueeze(0)
-        self.register_buffer('pos_enc', encode)
+        self.encode = encode.unsqueeze(0)
+        self.register_buffer('pos_enc', self.encode)
  
     
     def forward(self, x):
