@@ -10,7 +10,7 @@ hyper_params = {
     "batch_size": 100,
     "num_epochs": 3,
     "learning_rate": 0.01,
-    "hidden_size": 64,
+    "hidden_size": 128,
     "embedding_size": 64,
     "num_head": 4,
     "dropout_rate": 0.1,
