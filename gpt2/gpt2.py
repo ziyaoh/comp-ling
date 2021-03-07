@@ -1,17 +1,25 @@
+from comet_ml import Experiment
 import torch
-import torch.nn
+from torch import nn, optim
 import argparse
 from transformers import *
 from gpt2 import *
 from transformer import *
+from model import *
 from preprocess import *
 from tqdm import tqdm
-from comet_ml import Experiment
+
 
 hyper_params = {
     "batch_size": 100,
     "num_epochs": 3,
-    "learning_rate": 0.01
+    "learning_rate": 0.01,
+
+    "hidden_size": 128,
+    "embedding_size": 64,
+    "num_head": 4,
+    "dropout_rate": 0.1,
+    "num_layer": 2,
 }
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -85,15 +93,16 @@ if __name__ == "__main__":
                         help="run testing loop")
     args = parser.parse_args()
 
-    experiment = Experiment(project_name="transformer")
+    experiment = Experiment(project_name="gpt2")
     experiment.log_parameters(hyper_params)
 
     # Load the GPT2 Tokenizer
     tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
-    tokenizer.add_tokens(["START", "STOP"])
+    if args.model == "transformer":
+        tokenizer.add_tokens(["START", "STOP"])
    
     # Load the train, test DataLoader NOTE: Parse the data using the GPT2 tokenizer for both models
-    train_loader, test_loader, vocab_size = load_dataset((args.train_file, args.test_file), tokenizer, args.batch_size)
+    train_loader, test_loader, vocab_size = load_dataset((args.train_file, args.test_file), tokenizer, args.model, args.batch_size)
 
     if args.model == "transformer":
         # Load your transformer

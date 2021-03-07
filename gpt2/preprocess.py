@@ -12,12 +12,12 @@ UNK = "UNK_"
 STOP = "STOP"
 
 class GPTDataset(Dataset):
-    def __init__(self, input_file, tokenizer):
+    def __init__(self, input_file, tokenizer, model):
 
         with open(input_file, "r") as f:
             sentences = f.readlines()
 
-        sentences = [sent.strip().split() for sent in sentences[1:]]
+        sentences = [sent.strip() for sent in sentences[1:]]
         # for sentence in sentences:
         #     for token in sentence:
         #         if token not in self.word2id:
@@ -28,7 +28,10 @@ class GPTDataset(Dataset):
         self.all_length = list()
         for sentence in sentences:
             label = tokenizer.encode(sentence)
-            data = tokenizer.encode(START + " " + setence[:-(len(STOP) + 1)])
+            if model == "transformer":
+                data = tokenizer.encode(START + " " + sentence[:-(len(STOP) + 1)])
+            else:
+                data = tokenizer.encode(sentence)
 
             self.all_length.append(len(data))
             self.all_data.append(torch.LongTensor(data))
@@ -48,18 +51,18 @@ class GPTDataset(Dataset):
         }
 
 
-def load_dataset(fn, tokenizer, batch_size):
+def load_dataset(fn, tokenizer, model, batch_size):
     """
     :param fn: filename for the dataset
     :return: (torch.utils.data.DataLoader, torch.utils.data.DataLoader) for train and test
     :Comment: You don't have to shuffle the test dataset
     """
-    train_set = TransDataset(fn[0], tokenizer)
-    test_set = TransDataset(fn[1], tokenizer)
+    train_set = GPTDataset(fn[0], tokenizer, model)
+    test_set = GPTDataset(fn[1], tokenizer, model)
     vocab_size = len(tokenizer)
     
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
 
     return train_loader, test_loader, vocab_size
 

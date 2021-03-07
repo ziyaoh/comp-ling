@@ -11,5 +11,6 @@ class GPT2_Transformer(nn.Module):
         self.model = GPT2LMHeadModel.from_pretrained("gpt2")
 
     def forward(self, input):
-        logits = self.model(input_ids=input)
+        res = self.model(input_ids=input)
+        logits = res[0]
         return logits
