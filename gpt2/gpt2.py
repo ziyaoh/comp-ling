@@ -63,19 +63,20 @@ def test(model, test_loader, experiment, hyperparams, model_type):
                 data = batch["data"].to(device)
                 label = batch["label"].to(device)
                 length = batch["length"].to(device)
-                res = model(data).detach()
 
                 if model_type == "transformer":
-                    logits = res
+                    logits = model(data).detach()
                     pred = torch.flatten(logits, start_dim=0, end_dim=1)
                     label = torch.flatten(label)
                     loss = loss_fn(pred, label).detach()
                     total_loss += loss
                     word_count += torch.sum(length)
                 else:
-                    loss = res
+                    loss = model(data, label)
                     num = torch.sum(length)
-                    total_loss += loss * num
+                    # print(loss)
+                    # print(num)
+                    total_loss += (loss * num)
                     word_count += num
         # Log perplexity to Comet.ml using experiment.log_metric
         perplexity = torch.exp(total_loss / word_count)

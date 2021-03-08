@@ -10,7 +10,7 @@ class GPT2_Transformer(nn.Module):
         '''
         self.model = GPT2LMHeadModel.from_pretrained("gpt2")
 
-    def forward(self, input):
-        res = self.model(input_ids=input, labels=input)
+    def forward(self, input, label):
+        res = self.model(input_ids=input, labels=label)
         logits = res[0]
         return logits
