@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers import *
+from transformers import GPT2LMHeadModel
 
 class GPT2_Transformer(nn.Module):
     def __init__(self):
@@ -11,6 +11,6 @@ class GPT2_Transformer(nn.Module):
         self.model = GPT2LMHeadModel.from_pretrained("gpt2")
 
     def forward(self, input):
-        res = self.model(input_ids=input)
+        res = self.model(input_ids=input, labels=input)
         logits = res[0]
         return logits

@@ -18,6 +18,7 @@ import torch
 import torch.nn as nn
 
 FF_HIDDEN = 2048
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 """
 check list
@@ -111,8 +112,8 @@ class SingleAttention(nn.Module):
         v = self.v(inputs)
         # v = [batch size, seq len, d_k]
 
-        weight = torch.bmm(k, q) // math.sqrt(self.d_k)
-        mask = torch.triu(torch.ones((seq_len, seq_len)), diagonal=1).bool()
+        weight = torch.bmm(k, q) / math.sqrt(self.d_k)
+        mask = torch.triu(torch.ones((seq_len, seq_len)).to(device), diagonal=1).bool()
         weight = weight.masked_fill(mask, -float("inf")).type_as(weight)
         # weight = [batch size, seq len, seq len]
 
@@ -152,7 +153,7 @@ class PositionalEncoder(nn.Module):
     def __init__(self, hidden_size, max_seq_len = 1000):
         super(PositionalEncoder, self).__init__()
         
-        encode = torch.zeros(max_seq_len, hidden_size)
+        encode = torch.zeros(max_seq_len, hidden_size).to(device)
         for pos in range(max_seq_len):
             for i in range(0, hidden_size, 2):
                 tmp = pos / (10000 ** (i/hidden_size))

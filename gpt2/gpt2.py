@@ -2,7 +2,7 @@ from comet_ml import Experiment
 import torch
 from torch import nn, optim
 import argparse
-from transformers import *
+from transformers import GPT2Tokenizer
 from gpt2 import *
 from transformer import *
 from model import *
@@ -11,7 +11,6 @@ from tqdm import tqdm
 
 
 hyper_params = {
-    "batch_size": 100,
     "num_epochs": 3,
     "learning_rate": 0.01,
 
@@ -43,7 +42,7 @@ def train(model, train_loader, experiment, hyperparams):
                 loss = loss_func(pred, label)
                 loss.backward()
                 optimizer.step()
-                experiment.log_metric("loss", loss.detach())
+                experiment.log_metric("loss", loss.detach().cpu())
 
                 # Compute train accuracy
 
@@ -52,28 +51,36 @@ def train(model, train_loader, experiment, hyperparams):
 
 
 # Test the Model
-def test(model, test_loader, experiment, hyperparams):
+def test(model, test_loader, experiment, hyperparams, model_type):
     loss_fn = nn.CrossEntropyLoss(ignore_index=0, reduction="sum")
     total_loss = 0
     word_count = 0
 
     model = model.eval()
     with experiment.test():
-        for batch in tqdm(test_loader):
-            data = batch["data"].to(device)
-            label = batch["label"].to(device)
-            length = batch["length"].to(device)
-            logits = model(data)
+        with torch.no_grad():
+            for batch in tqdm(test_loader):
+                data = batch["data"].to(device)
+                label = batch["label"].to(device)
+                length = batch["length"].to(device)
+                res = model(data).detach()
 
-            pred = torch.flatten(logits, start_dim=0, end_dim=1)
-            label = torch.flatten(label)
-            loss = loss_fn(pred, label).detach()
-            total_loss += loss
-            word_count += torch.sum(length)
+                if model_type == "transformer":
+                    logits = res
+                    pred = torch.flatten(logits, start_dim=0, end_dim=1)
+                    label = torch.flatten(label)
+                    loss = loss_fn(pred, label).detach()
+                    total_loss += loss
+                    word_count += torch.sum(length)
+                else:
+                    loss = res
+                    num = torch.sum(length)
+                    total_loss += loss * num
+                    word_count += num
         # Log perplexity to Comet.ml using experiment.log_metric
         perplexity = torch.exp(total_loss / word_count)
         print("perplexity:", perplexity)
-        experiment.log_metric("perplexity", perplexity)
+        experiment.log_metric("perplexity", perplexity.cpu())
 
 
 
@@ -112,10 +119,10 @@ if __name__ == "__main__":
             hyper_params["num_head"],
             hyper_params["num_layer"],
             hyper_params["dropout_rate"]
-        )
+        ).to(device)
     elif args.model == "gpt2":
         # Load the GPT2 model
-        model = GPT2_Transformer()
+        model = GPT2_Transformer().to(device)
 
     # Train the model if args.model == "transformer"
 
@@ -128,7 +135,7 @@ if __name__ == "__main__":
             train(model, train_loader, experiment, hyper_params)
     if args.test:
         print("testing reranker...")
-        test(model, test_loader, experiment, hyper_params)
+        test(model, test_loader, experiment, hyper_params, args.model)
     if args.save:
         print("saving model...")
         torch.save(model.state_dict(), './model.pt')
