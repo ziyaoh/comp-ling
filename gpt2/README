@@ -1,20 +1,48 @@
+comet.ml: https://www.comet.ml/fxgtqr5z/gpt2/view/new
+
+transformer:
+comet hash: 12e9ebbcf3ac4ce29446541a9f643212
+perplexity: 36.4763
+
+gpt2:
+comet hash: fbb47868e20b45628f7409c0fdd8cb3e
+perplexity: 124.6189
+
+
 In your README, please note down:
 - A brief description talking about your rationale behind the hyperparameters during training
+
+hyper_params = {
+    "batch_size": 32,
+    "num_epochs": 3,
+    "learning_rate": 0.01,
+
+    "hidden_size": 128,
+    "embedding_size": 64,
+    "num_head": 4,
+    "dropout_rate": 0.1,
+    "num_layer": 2,
+}
+
+I used batch size of 32 instead of 100 due to the memory limitation on Grid cluster. My transformer model is smaller than the one mentioned in the paper, because I think the dataset we are using is relatively smaller to train a complex model. So I reduced number of heads and number layers for my model. I used the same dropout rate as mentioned in the paper. The hidden size and the embedding size are inherited from my previous homeworks.
 
 - When training your own transformer, what is the difference between the preprocess you did on the previous assignment
 and the preprocess you are doing right now?
 
+In my previous assignment, I created a vocabulary and assigned ids to the words manually. In this assignment, I just use the GPT2 Tokenizer directly, which assigns ids to the tokens internally. Also I used 0 as the padding value in previous assignments. In this one, when testing GPT2 model, I used -100 as padding value for labels. This is due to the implementation of the Huggingface GPT2 model which requires -100 to be the padding value in labels, in order to calculate loss correctly.
+
 - Give one positive and negative side about using the GPT-2 tokenizer for your own transformer
+
+GPT2 tokenizer utilizes BPE internally, which improves the model performance. On the other hand, this tokenizer is pretrained general purpose tokenizer. So it might not acheieve the optimal performance on small corpus in some specific area.
 
 - Compare the perplexities of both models. Which one is better? Why? Explain briefly.
 
+My Transformer performs better than the pretrained GPT2 model. The reason could be that the GPT2 model was pretrained on a difference corpus. When tested on a different corpus it didn't achieve the optimal performance due to bias.
+
 - Is this a fair comparison? Why?
+
+This is not a fail comparison. Because my transformer is trained from scratch using the target corpus, so it could learn more features of the test dataset. The GPT2 model was pretrained using a different corpus and didn't go through a fine tune training. So it won't be able to learn the features that could potentially help.
 
 - What could be the advantages of using a pre-trained model? What is a possible use case? 
 
-
-transformer:
-3a9cd64daeb24bce8714fdad70ba26ab
-
-gpt2:
-41246c76fcb5405da974f64c29aefc93
+A pretrained model has learned a lot of general purpose features from large corpus, so it requires a much smaller dataset for the purpose of fine tuning. A possible use case could be to pretrain a general purpose language model using large corpus, then fine tune it using small task specific dataset before actually using it.
