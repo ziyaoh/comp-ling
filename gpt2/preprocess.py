@@ -56,12 +56,27 @@ def collator(batch):
         label.append(item["label"])
         length.append(item["length"])
     data = pad_sequence(data, batch_first=True, padding_value=0)
+    label = pad_sequence(label, batch_first=True, padding_value=0)
+    return {
+        "data": data,
+        "label": label,
+        "length": torch.LongTensor(length),
+    }
+
+def stupid_collator(batch):
+    data, label, length = list(), list(), list()
+    for item in batch:
+        data.append(item["data"])
+        label.append(item["label"])
+        length.append(item["length"])
+    data = pad_sequence(data, batch_first=True, padding_value=0)
     label = pad_sequence(label, batch_first=True, padding_value=-100)
     return {
         "data": data,
         "label": label,
         "length": torch.LongTensor(length),
     }
+
 
 def load_dataset(fn, tokenizer, model, batch_size):
     """
@@ -74,7 +89,10 @@ def load_dataset(fn, tokenizer, model, batch_size):
     vocab_size = len(tokenizer)
     
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=collator)
-    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, collate_fn=collator)
+    if model == "transformer":
+        test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, collate_fn=collator)
+    else:
+        test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, collate_fn=stupid_collator)
 
     return train_loader, test_loader, vocab_size
 
