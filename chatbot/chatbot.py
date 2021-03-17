@@ -7,6 +7,8 @@ import numpy as np
 from preprocess import *
 from tqdm import tqdm
 
+from transformers import GPT2Tokenizer, GPT2LMHeadModel
+
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 hyper_params = {
@@ -27,8 +29,23 @@ def train(model, train_loader, optimizer, experiment):
     """
     # TODO: Write the training loop here, save trained model weights if needed
     model = model.train()
+    loss_func = torch.nn.CrossEntropyLoss(ignore_index=0)
     with experiment.train():
-        pass
+        for epoch in range(hyper_params["num_epochs"]):
+            print("training for epoch", epoch)
+            for batch in tqdm(train_loader):
+                data = batch["data"].to(DEVICE)
+                label = batch["label"].to(DEVICE)
+                # Forward + Backward + Optimize
+                logits = model(input_ids=data)
+                pred = torch.flatten(logits, start_dim=0, end_dim=1)
+                label = torch.flatten(label)
+
+                optimizer.zero_grad()
+                loss = loss_func(pred, label)
+                loss.backward()
+                optimizer.step()
+                experiment.log_metric("loss", loss.detach().cpu())
 
 
 def test(model, test_loader, experiment):
@@ -39,10 +56,26 @@ def test(model, test_loader, experiment):
     :param experiment: comet.ml experiment object
     """
     # TODO: Write the testing loop and calculate perplexity
+    total_loss = 0
+    word_count = 0
     model = model.eval()
     with experiment.validate():
+        with torch.no_grad():
+            for batch in tqdm(test_loader):
+                data = batch["data"].to(DEVICE)
+                label = batch["label"].to(DEVICE)
+                length = batch["length"].to(DEVICE)
+
+                loss = model(input_ids=data, labels=label)
+                num = torch.sum(length)
+                # print(loss)
+                # print(num)
+                total_loss += (loss * num)
+                word_count += num
+        # Log perplexity to Comet.ml using experiment.log_metric
+        perplexity = torch.exp(total_loss / word_count)
         print("perplexity:", perplexity)
-        experiment.log_metric("perplexity", perplexity)
+        experiment.log_metric("perplexity", perplexity.cpu())
 
 
 def interactive(input, tokenizer, model, top_k=10, ntok=20):
@@ -64,7 +97,12 @@ def interactive(input, tokenizer, model, top_k=10, ntok=20):
     when printing out the response.
     """
     # TODO: Write the generation function for interacting with trained model
-    response = None
+    prompt_ids = tokenizer.encode(input)
+    data = torch.LongTensor([tokenizer.bos_token_id] + prompt_ids + [tokenizer.sep_token_id]).to(DEVICE)
+
+    result = model.generate(input_ids=data, max_length=ntok, do_sample=True, top_k=top_k, eos_token_id=tokenizer.eos_token_id, forced_eos_token_id=tokenizer.eos_token_id)
+
+    response = tokenizer.decode(result[0][data.shape[0]: -1])
     print(response)
 
 
@@ -88,10 +126,14 @@ if __name__ == "__main__":
     experiment.log_parameters(hyper_params)
 
     # Load the GPT2 Tokenizer, add any special token if needed
+    tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 
     # Intialized the pretrained GPT-2 model and optimizer
+    model = GPT2LMHeadModel.from_pretrained('gpt2')
+    optimizer = torch.optim.Adam(model.parameters(), lr = hyper_params['learning_rate'])
 
     # Load the train, test DataLoader NOTE: Parse the data using GPT2 tokenizer
+    train_loader, test_loader = load_dataset((args.train_file, args.test_file), tokenizer, hyper_params["batch_size"])
 
     if args.load:
         model.load_state_dict(torch.load('model.pt'))
