@@ -1,13 +1,14 @@
-from transformers import *
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 import torch
 
+SEP = "<|septoken|>"
 
 class ChatbotDataset(Dataset):
 
     def __init__(self, file_path, tokenizer):
         bos, sep, eos = tokenizer.bos_token_id, tokenizer.sep_token_id, tokenizer.eos_token_id
+        print(bos, tokenizer.bos_token, sep, tokenizer.sep_token, eos, tokenizer.eos_token)
 
         with open(file_path, "r") as f:
             sentences = f.readlines()
@@ -16,21 +17,26 @@ class ChatbotDataset(Dataset):
 
         self.all_data = list()
         self.all_label = list()
+        self.all_length = list()
         for sentence in sentences:
             pair = sentence.split("\t")
             if len(pair) != 2:
                 continue
             prompt, response = pair
+            prompt = prompt.strip()
+            response = response.strip()
             prompt = " ".join(prompt.split()[1:])
 
             prompt_id = tokenizer.encode(prompt)
             response_id = tokenizer.encode(response)
 
             data = [bos] + prompt_id + [sep] + response_id
-            label = prompt_id + [sep] + response_id + [eos]
+            label = [-100] * (len(prompt_id) + 1) + response_id + [eos]
             assert(len(data) == len(label))
-            self.all_data.append(data)
-            self.all_label.append(label)
+            self.all_data.append(torch.LongTensor(data))
+            self.all_label.append(torch.LongTensor(label))
+            self.all_length.append(len(response_id) + 1)
+
 
     def __len__(self):
         return len(self.all_data)
@@ -39,6 +45,7 @@ class ChatbotDataset(Dataset):
         return {
             "data": self.all_data[idx],
             "label": self.all_label[idx],
+            "length": self.all_length[idx],
         }
 
 
@@ -48,17 +55,22 @@ class MyCollator:
         self.label_padding_value = label_padding_value
 
     def __call__(self, batch):
-        data, label, length = list(), list(), list()
+        data, label, length, mask = list(), list(), list(), list()
         for item in batch:
             data.append(item["data"])
             label.append(item["label"])
-            length.append(len(item["data"]))
+            length.append(item["length"])
+            mask.append(torch.FloatTensor([1] * len(item["data"])))
         data = pad_sequence(data, batch_first=True, padding_value=self.data_padding_value)
         label = pad_sequence(label, batch_first=True, padding_value=self.label_padding_value)
+        mask = pad_sequence(mask, batch_first=True, padding_value=0)
+        position = torch.LongTensor([[list(range(data.shape[1]))] for _ in range(data.shape[0])])
         return {
             "data": data,
             "label": label,
             "length": torch.LongTensor(length),
+            "mask": mask,
+            "position": position,
         }
 
 
@@ -80,10 +92,10 @@ def load_dataset(fn, tokenizer, batch_size):
     train_set = ChatbotDataset(fn[0], tokenizer)
     test_set = ChatbotDataset(fn[1], tokenizer)
     
-    train_collator = MyCollator(tokenizer.pad_token_id, tokenizer.pad_token_id)
+    train_collator = MyCollator(0, 0)
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=train_collator)
 
-    test_collator = MyCollator(tokenizer.pad_token_id, -100)
+    test_collator = MyCollator(0, -100)
     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, collate_fn=test_collator)
 
     return train_loader, test_loader

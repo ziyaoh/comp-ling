@@ -12,9 +12,9 @@ from transformers import GPT2Tokenizer, GPT2LMHeadModel
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 hyper_params = {
-     "batch_size": None,
-     "num_epochs": None,
-     "learning_rate": None,
+     "batch_size": 32,
+     "num_epochs": 1,
+     "learning_rate": 0.001,
      "window_size": None
  }
 
@@ -29,20 +29,21 @@ def train(model, train_loader, optimizer, experiment):
     """
     # TODO: Write the training loop here, save trained model weights if needed
     model = model.train()
-    loss_func = torch.nn.CrossEntropyLoss(ignore_index=0)
+    # loss_func = torch.nn.CrossEntropyLoss(ignore_index=0)
     with experiment.train():
         for epoch in range(hyper_params["num_epochs"]):
             print("training for epoch", epoch)
             for batch in tqdm(train_loader):
                 data = batch["data"].to(DEVICE)
                 label = batch["label"].to(DEVICE)
+                length = batch["length"].to(DEVICE)
+                mask = batch["mask"].to(DEVICE)
+                position = batch["position"].to(DEVICE)
+
                 # Forward + Backward + Optimize
-                logits = model(input_ids=data)
-                pred = torch.flatten(logits, start_dim=0, end_dim=1)
-                label = torch.flatten(label)
+                loss = model(input_ids=data, position_ids=position, attention_mask=mask, labels=label).loss
 
                 optimizer.zero_grad()
-                loss = loss_func(pred, label)
                 loss.backward()
                 optimizer.step()
                 experiment.log_metric("loss", loss.detach().cpu())
@@ -65,8 +66,10 @@ def test(model, test_loader, experiment):
                 data = batch["data"].to(DEVICE)
                 label = batch["label"].to(DEVICE)
                 length = batch["length"].to(DEVICE)
+                mask = batch["mask"].to(DEVICE)
+                position = batch["position"].to(DEVICE)
 
-                loss = model(input_ids=data, labels=label)
+                loss = model(input_ids=data, position_ids=position, attention_mask=mask, labels=label).loss
                 num = torch.sum(length)
                 # print(loss)
                 # print(num)
@@ -98,11 +101,11 @@ def interactive(input, tokenizer, model, top_k=10, ntok=20):
     """
     # TODO: Write the generation function for interacting with trained model
     prompt_ids = tokenizer.encode(input)
-    data = torch.LongTensor([tokenizer.bos_token_id] + prompt_ids + [tokenizer.sep_token_id]).to(DEVICE)
+    data = torch.LongTensor([[tokenizer.bos_token_id] + prompt_ids + [tokenizer.sep_token_id]]).to(DEVICE)
 
     result = model.generate(input_ids=data, max_length=ntok, do_sample=True, top_k=top_k, eos_token_id=tokenizer.eos_token_id, forced_eos_token_id=tokenizer.eos_token_id)
 
-    response = tokenizer.decode(result[0][data.shape[0]: -1])
+    response = tokenizer.decode(result[0])
     print(response)
 
 
@@ -118,7 +121,7 @@ if __name__ == "__main__":
                         help="run training loop")
     parser.add_argument("-t", "--test", action="store_true",
                         help="run testing loop")
-    parser.add_argument("-i", "--interative", action="store_true",
+    parser.add_argument("-i", "--interactive", action="store_true",
                         help="run in interactive mode")
     args = parser.parse_args()
 
@@ -126,17 +129,18 @@ if __name__ == "__main__":
     experiment.log_parameters(hyper_params)
 
     # Load the GPT2 Tokenizer, add any special token if needed
-    tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+    tokenizer = GPT2Tokenizer.from_pretrained("gpt2", sep_token=SEP)
 
     # Intialized the pretrained GPT-2 model and optimizer
-    model = GPT2LMHeadModel.from_pretrained('gpt2')
+    model = GPT2LMHeadModel.from_pretrained('gpt2', sep_token_id=tokenizer.sep_token_id).to(DEVICE)
+    model.resize_token_embeddings(tokenizer.vocab_size + 1)
     optimizer = torch.optim.Adam(model.parameters(), lr = hyper_params['learning_rate'])
 
     # Load the train, test DataLoader NOTE: Parse the data using GPT2 tokenizer
     train_loader, test_loader = load_dataset((args.train_file, args.test_file), tokenizer, hyper_params["batch_size"])
 
     if args.load:
-        model.load_state_dict(torch.load('model.pt'))
+        model.load_state_dict(torch.load('model.pt', map_location=DEVICE))
     if args.train:
         # run train loop here
         print("running training loop...")
