@@ -8,7 +8,7 @@ class ChatbotDataset(Dataset):
 
     def __init__(self, file_path, tokenizer):
         bos, sep, eos = tokenizer.bos_token_id, tokenizer.sep_token_id, tokenizer.eos_token_id
-        print(bos, tokenizer.bos_token, sep, tokenizer.sep_token, eos, tokenizer.eos_token)
+        # print(bos, tokenizer.bos_token, sep, tokenizer.sep_token, eos, tokenizer.eos_token)
 
         with open(file_path, "r") as f:
             sentences = f.readlines()
@@ -30,8 +30,8 @@ class ChatbotDataset(Dataset):
             prompt_id = tokenizer.encode(prompt)
             response_id = tokenizer.encode(response)
 
-            data = [bos] + prompt_id + [sep] + response_id
-            label = [-100] * (len(prompt_id) + 1) + response_id + [eos]
+            data = prompt_id + [sep] + response_id
+            label = [-100] * (len(prompt_id)) + response_id + [eos]
             assert(len(data) == len(label))
             self.all_data.append(torch.LongTensor(data))
             self.all_label.append(torch.LongTensor(label))
@@ -92,7 +92,7 @@ def load_dataset(fn, tokenizer, batch_size):
     train_set = ChatbotDataset(fn[0], tokenizer)
     test_set = ChatbotDataset(fn[1], tokenizer)
     
-    train_collator = MyCollator(0, 0)
+    train_collator = MyCollator(0, -100)
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=train_collator)
 
     test_collator = MyCollator(0, -100)
