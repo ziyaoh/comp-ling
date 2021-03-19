@@ -2,8 +2,40 @@
 
 - Your test perplexity and the corresponding comet_ml hash
 
+comet.ml link: https://www.comet.ml/fxgtqr5z/chatbot/view/new
+test perplexity: 19.9
+comet.ml hash: fa685810f742454dae95c7e11dbd575a
+saved model link: https://drive.google.com/file/d/1payoyY0KqIrSNQIq1fKN9eBJnk3bKnT3/view?usp=sharing
+
+- Sample Conversation
+
+Please say something: hello! how are you doing!
+Chatbot: i'm doing great how are you
+Please say something: I'm great. Thanks for asking! What's your name?
+Chatbot: my name is jimmy and
+Please say something: And where are you from?
+Chatbot: i'm from the united states. you?
+Please say something: You know as a chatbot you really are smart.
+Chatbot: i do i do not have time for that
+Please say something: maybe not so smart
+Chatbot: it is very hard being smart. i am a bit like that
+Please say something: anyways, farewell jimmy
+Chatbot: good luck to you! i hope you are well today.
+
 - A brief description talking about your rationale behind the hyperparameters during training
+
+hyper_params = {
+     "batch_size": 32,
+     "num_epochs": 1,
+     "learning_rate": 0.00005,
+}
+
+batch_size is 32 which is inherited from previous projects. The model is trained for 1 epoch because the training loss converges within 1 epoch. I use learning rate as 0.00005 because most fine tuning use learning rate on the order of 10^-5. Also my experiments show that this learning rate achieves better performance than larger ones.
 
 - Can you describe your implementation for generating the response given an prompt? 
 
+With a prompt at hand, I first encode it to ids using GPT2Tokenizer, and then mannually append a seperator token id to the result. This seperator token id is added during model and tokenizer initialization, and is learned during training/fine tuning. Then I pass this resulting ids to the model using its generate method with proper parameters, and get a generated sequence back. After picking out the response part and decoding, I have a response text to the input prompt.
+
 - Can your think of other ways to improve the current chatbot given the persona dataset
+
+Currently we are ignoring the persona data and only training using the conversation data. I think we could potentially improve the model by train using both persona data and the conversation data. We could probably append these two together during the training phase, so that the model could learn to consider a particular persona when generating a response.
