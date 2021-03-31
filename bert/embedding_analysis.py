@@ -8,6 +8,7 @@ import numpy as np
 from model import BERT
 from data import MyDataset
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def plot_embeddings(texts, embeddings, plot_name):
     """
@@ -48,14 +49,36 @@ def embedding_analysis(model, experiment, train_set, test_set):
         "bank": ["bank", "banks", "banked"]
     }
 
-    for key in polysemous_words:
-        # TODO: Find all instances of sentences that have polysemous words.
+    with torch.no_grad():
+        for key in polysemous_words:
+            # TODO: Find all instances of sentences that have polysemous words.
+            relevent_seqs = list()
+            for seq in train_set.all_data:
+                for word in polysemous_words[key]:
+                    try:
+                        index = seq.index(word)
+                        relevent_seqs.append((seq, index))
+                    except ValueError:
+                        continue
+            for seq in test_set.all_data:
+                for word in polysemous_words[key]:
+                    try:
+                        index = seq.index(word)
+                        relevent_seqs.append((seq, index))
+                    except ValueError:
+                        continue
 
-        # TODO: Give these sentences as input, and obtain the specific word
-        #       embedding as output.
+            # TODO: Give these sentences as input, and obtain the specific word
+            #       embedding as output.
+            embedding = list()
+            for seq, index in relevent_seqs:
+                embed = model.get_embeddings( torch.LongTensor(seq).unsqueeze(0).to(device) )[0][index].cpu().numpy()
+                embedding.append(embed)
+            embedding = np.array(embedding)
 
-        # TODO: Use the plot_embeddings function above to plot the sentence
-        #       and embeddings in two-dimensional space.
+            # TODO: Use the plot_embeddings function above to plot the sentence
+            #       and embeddings in two-dimensional space.
+            plot_embeddings(polysemous_words[key], embedding, f"{key}.png")
 
-        # TODO: Save the plot as "{word}.png"
-        experiment.log_image(f"{key}.png")
+            # TODO: Save the plot as "{word}.png"
+            experiment.log_image(f"{key}.png")
