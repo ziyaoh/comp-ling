@@ -78,7 +78,7 @@ def embedding_analysis(model, experiment, train_set, test_set):
 
             # TODO: Use the plot_embeddings function above to plot the sentence
             #       and embeddings in two-dimensional space.
-            plot_embeddings(polysemous_words[key], embedding, f"{key}.png")
+            plot_embeddings(polysemous_words[key], embedding, "%s.png"%key)
 
             # TODO: Save the plot as "{word}.png"
-            experiment.log_image(f"{key}.png")
+            experiment.log_image("%s.png"%key)

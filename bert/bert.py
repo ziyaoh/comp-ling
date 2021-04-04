@@ -15,9 +15,9 @@ hyperparams = {
     "batch_size": 32,
     "lr": 0.001,
 
-    "hidden_size": 512,
-    "num_head": 8,
-    "num_layers": 2,
+    "hidden_size": 64,
+    "num_head": 2,
+    "num_layers": 1,
 }
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
