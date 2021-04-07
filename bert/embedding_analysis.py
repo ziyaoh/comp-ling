@@ -32,7 +32,7 @@ def plot_embeddings(texts, embeddings, plot_name):
     plt.savefig(plot_name, dpi=100)
 
 
-def embedding_analysis(model, experiment, train_set, test_set):
+def embedding_analysis(model, experiment, train_set, test_set, epoch=None):
     """
     Create embedding analysis image for each list of polysemous words and
     upload them to comet.ml.
@@ -49,23 +49,29 @@ def embedding_analysis(model, experiment, train_set, test_set):
         "bank": ["bank", "banks", "banked"]
     }
 
+    word2id = train_set.word2id
     with torch.no_grad():
         for key in polysemous_words:
             # TODO: Find all instances of sentences that have polysemous words.
             relevent_seqs = list()
+            texts = list()
             for seq in train_set.all_data:
                 for word in polysemous_words[key]:
                     try:
-                        index = seq.index(word)
+                        wid = word2id[word]
+                        index = seq.index(wid)
                         relevent_seqs.append((seq, index))
-                    except ValueError:
+                        texts.append(word)
+                    except (KeyError, ValueError):
                         continue
             for seq in test_set.all_data:
                 for word in polysemous_words[key]:
                     try:
-                        index = seq.index(word)
+                        wid = word2id[word]
+                        index = seq.index(wid)
                         relevent_seqs.append((seq, index))
-                    except ValueError:
+                        texts.append(word)
+                    except (KeyError, ValueError):
                         continue
 
             # TODO: Give these sentences as input, and obtain the specific word
@@ -77,8 +83,12 @@ def embedding_analysis(model, experiment, train_set, test_set):
             embedding = np.array(embedding)
 
             # TODO: Use the plot_embeddings function above to plot the sentence
-            #       and embeddings in two-dimensional space.
-            plot_embeddings(polysemous_words[key], embedding, "%s.png"%key)
+            #       and embeddings in two-dimensional space
+            name = key
+            if epoch is not None:
+                name = key + "-" + str(epoch)
+            plot_embeddings(texts, embedding, "%s.png"%name)
 
             # TODO: Save the plot as "{word}.png"
-            experiment.log_image("%s.png"%key)
+            experiment.log_image("%s.png"%name)
+            plt.close()

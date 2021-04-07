@@ -11,18 +11,19 @@ from tqdm import tqdm  # optional progress bar
 
 # TODO: Set hyperparameters
 hyperparams = {
-    "num_epochs": 2,
+    "num_epochs": 52,
     "batch_size": 32,
-    "lr": 0.001,
+    "lr": 0.0001,
+    "seq_len": 100,
 
-    "hidden_size": 64,
-    "num_head": 2,
-    "num_layers": 1,
+    "hidden_size": 512,
+    "num_head": 8,
+    "num_layers": 4,
 }
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def train(model, train_loader, loss_fn, optimizer, experiment, hyperparams):
+def train(model, train_loader, loss_fn, optimizer, experiment, hyperparams, test_loader):
     """
     Training loop that trains BERT model.
 
@@ -51,10 +52,15 @@ def train(model, train_loader, loss_fn, optimizer, experiment, hyperparams):
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+                # print(model.embedding.weight.grad)
+                # input("check grad")
                 experiment.log_metric("loss", loss.detach().cpu())
+            test(model, test_loader, loss_fn, experiment, hyperparams)
+            if (epoch + 1) % 4 == 0:
+                embedding_analysis(model, experiment, train_loader.dataset, test_loader.dataset, epoch + 1)
 
 
-def test(model, test_loader, loss_fn, word2vec, experiment, hyperparams):
+def test(model, test_loader, loss_fn, experiment, hyperparams):
     """
     Testing loop for BERT model and logs perplexity and accuracy to comet.ml.
 
@@ -76,19 +82,26 @@ def test(model, test_loader, loss_fn, word2vec, experiment, hyperparams):
             masked_ind = batch["masked_ind"].to(device)
 
             logits = model(data, masked_ind)
+
             pred = torch.flatten(logits, start_dim=0, end_dim=1)
             label = torch.flatten(label)
+
             pred_idx = torch.argmax(pred, 1)
+            correct_count += torch.sum(pred_idx == label)
+
             loss = loss_fn(pred, label)
 
             num = label.shape[0]
             total_loss += (loss * num)
             word_count += num
-            correct_count += torch.sum(pred_idx == label)
-        perplexity = torch.exp(total_loss / word_count)
+
+        print("total_loss", total_loss, "word_count", word_count, "correct_count", correct_count)
+        perplexity = torch.exp(total_loss / word_count).cpu()
         accuracy = int(correct_count) / int(word_count)
         experiment.log_metric("perplexity", perplexity)
         experiment.log_metric("accuracy", accuracy)
+        print("perplexity:", perplexity)
+        print("accuracy:", accuracy)
 
 
 if __name__ == "__main__":
@@ -126,12 +139,10 @@ if __name__ == "__main__":
     if args.load:
         model.load_state_dict(torch.load('./model.pt'))
     if args.train:
-        train(model, train_loader, loss_fn, optimizer, word2id, experiment,
-              hyperparams)
+        train(model, train_loader, loss_fn, optimizer, experiment, hyperparams, test_loader)
     if args.test:
-        test(model, test_loader, loss_fn, word2id, experiment, hyperparams)
+        test(model, test_loader, loss_fn, experiment, hyperparams)
     if args.save:
         torch.save(model.state_dict(), './model.pt')
     if args.analysis:
-        embedding_analysis(model, experiment, train_set, test_set,
-                           hyperparams["batch_size"])
+        embedding_analysis(model, experiment, train_set, test_set)

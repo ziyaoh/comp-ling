@@ -3,10 +3,11 @@ import torch
 import numpy as np
 from collections import defaultdict
 import random
+import copy
 
 MASK = "<MASK>"
 UNK = "<UNK>"
-unk_threshold = 10
+unk_threshold = 7
 
 class MyDataset(Dataset):
     # TODO: Create masked Penn Treebank dataset.
@@ -22,7 +23,7 @@ class MyDataset(Dataset):
         if not word2id:
             self.word2id = dict()
             self.word2id[MASK] = 0
-            self.word2id[UNK] = 2
+            self.word2id[UNK] = 1
 
             count = defaultdict(int)
             for token in tokens:
@@ -40,8 +41,9 @@ class MyDataset(Dataset):
 
             tid = self.word2id[token] if token in self.word2id else self.word2id[UNK]
             self.all_data[-1].append(tid)
-        if self.all_data[-1] < seq_len:
+        if len(self.all_data[-1]) < seq_len:
             self.all_data.pop()
+        assert(all([len(seq) == seq_len for seq in self.all_data]))
 
     def __len__(self):
         """
@@ -62,7 +64,7 @@ class MyDataset(Dataset):
         :return: tuple or dictionary of the data
         """
         # TODO: Override method to return the ith item in dataset
-        data = self.all_data[i]
+        data = copy.copy(self.all_data[i])
         num_masked = int(len(data) * 0.15)
         masked_ind = random.sample(list(range(len(data))), num_masked)
         label = list()

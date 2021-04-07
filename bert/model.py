@@ -16,11 +16,14 @@ class BERT(nn.Module):
         self.transformer = nn.TransformerEncoder(layer, num_layers=num_layers)
         self.logits = nn.Linear(in_features=hidden_size, out_features=vocab_size)
 
+        initrange = 0.1
+        self.embedding.weight.data.uniform_(-initrange, initrange)
+        self.logits.bias.data.zero_()
+        self.logits.weight.data.uniform_(-initrange, initrange)
+
     def forward(self, x, all_masked_ind):
         # TODO: Write feed-forward step
-        static_emb = self.embedding(x)
-        pos_emb = self.pos_enc(static_emb)
-        res = self.transformer(pos_emb)
+        res = self.get_embeddings(x)
 
         # res = [batch_size * seq_len * hidden]
         # all_masked_ind = [batch_size * num_masked]
@@ -37,12 +40,16 @@ class BERT(nn.Module):
 
     def get_embeddings(self, x):
         # TODO: Write function that returns BERT embeddings of a sequence
-        static_emb = self.embedding(x)
-        pos_emb = self.pos_enc(static_emb)
-        res = self.transformer(pos_emb)
+        emb = self.embedding(x)
+        res = self.pos_enc(emb)
+
+        res = torch.transpose(res, 0, 1)
+        res = self.transformer(res)
+        res = torch.transpose(res, 0, 1)
         return res
 
 
+"""
 class PositionalEncoder(nn.Module):
     def __init__(self, hidden_size, max_seq_len=1000):
         super(PositionalEncoder, self).__init__()
@@ -60,5 +67,23 @@ class PositionalEncoder(nn.Module):
     
     def forward(self, x):
         seq_len = x.size(1)
-        x = x + torch.autograd.Variable(self.encode[:,:seq_len], requires_grad=False)
+        x = x + torch.autograd.Variable(self.encode[:,:seq_len], requires_grad=False).to(device)
         return x
+"""
+
+
+class PositionalEncoder(nn.Module):
+    def __init__(self, hidden_size, max_seq_len=1000):
+        super(PositionalEncoder, self).__init__()
+        self.embed = nn.Embedding(max_seq_len, hidden_size)
+        self.norm = nn.LayerNorm(hidden_size)
+
+    def forward(self, x):
+        position = torch.arange(0, x.shape[1]).unsqueeze(
+            0).repeat(x.shape[0], 1).to(device)
+        pos_x = self.embed(position)
+        # input = embedded_x * self.scale + pos_x
+        embeddings = self.norm(x + pos_x)
+        return embeddings
+
+
