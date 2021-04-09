@@ -1,12 +1,31 @@
+Comet.ml URL:
+https://www.comet.ml/fxgtqr5z/bert/view/new
+
+Experiment Hash (for both training/testing & embedding analysis):
+ff95bec81323478db1110f271718eeae
+
 In your README, please note down:
 
 - A brief description talking about your rationale behind the 
   hyperparameters used
 
+hyperparams = {
+    "num_epochs": 80,
+    "batch_size": 32,
+    "lr": 0.0001,
+    "seq_len": 100,
+
+    "hidden_size": 512,
+    "num_head": 4,
+    "num_layers": 2,
+}
+
+The sequence length parameter is by default. Every other paramter was chosen through experiments to make the model converge fast to a decent performance. I have also tried a larger model with 8 heads and 6 transformer layers, but it seems this smaller one could reach about the same performance, and being faster and easier to train. The reason might be that the dataset we are using is too small for a model too complicated.
 
 - A discussion on the embedding plots, for each word. Are there 
   any discernible patterns? Does the distribution seem random?
 
+In the embedding plots, mostly each distinct form of a word is clustered together, with a clean seperation between clusters. This pattern doesn't look random to me.
 
 
 Further, please answer the following written questions:
@@ -15,11 +34,15 @@ Further, please answer the following written questions:
   to create word representations, compared to other methods such as the 
   embeddings matrix that we have used throughout the semester?
 
+Compared to the static embedding matrix, BERT is able to incorporate the context through attention mechnism when generating the embedding. Therefore, it is more flexible. On the other hand, a BERT model is complicated, which requires a lot of data as well as resources to train.
+
 
 - What is the purpose of masking in the way described in the paper 
   (as compared to the masking that was done in the previous assignment?) 
   Furthermore, why do we replace words with the mask token only 80% of
   the time?
+
+Since BERT model utilizes bidirectional attention mechenism, we need to mask the target word in the input sentences to make sure that the model doesn't see the answer when predicting them. We use the mask token only 80% of the time because the mask token won't appear in the fine-tuning corpus. If we use the mask token all the time this would be a discrepency between the pretraining and the fine-tuning step, which makes the model harder to fine-tune.
 
 
 - Suppose that you will adapt your model for the SWAG (Situations With 
@@ -29,3 +52,5 @@ Further, please answer the following written questions:
   architecture, data preprocessing, and the training process) to achieve this. 
   (Hint: begin by considering Task #2 of the original BERT model, described 
   in Section 3.3.2.)
+
+During data preprocessing, the input sentences should be concatenated with each of its choices, separated by a [SEP] token. All four continuations should be feeded together into the model for the classification purpose. The model can have an extra learned embedding to distinguish tokens in the two sentences. To pick the most likely continuation, the last layer of the model should take of logits value of the four input continuations at the [CLS] token and apply softmax on them. During training, each batch should contain several training examples, where each example includes the four possible continuations. Furthermore, each continuation is a concatenation of the input sentence and one of its next sentence. The last layer should be coded accordingly to recogonize this change.
