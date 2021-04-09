@@ -11,14 +11,14 @@ from tqdm import tqdm  # optional progress bar
 
 # TODO: Set hyperparameters
 hyperparams = {
-    "num_epochs": 52,
+    "num_epochs": 80,
     "batch_size": 32,
     "lr": 0.0001,
     "seq_len": 100,
 
     "hidden_size": 512,
-    "num_head": 8,
-    "num_layers": 4,
+    "num_head": 4,
+    "num_layers": 2,
 }
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -55,9 +55,12 @@ def train(model, train_loader, loss_fn, optimizer, experiment, hyperparams, test
                 # print(model.embedding.weight.grad)
                 # input("check grad")
                 experiment.log_metric("loss", loss.detach().cpu())
-            test(model, test_loader, loss_fn, experiment, hyperparams)
-            if (epoch + 1) % 4 == 0:
+            """
+            if (epoch + 1) % 10 == 0:
+                test(model, test_loader, loss_fn, experiment, hyperparams)
+            if (epoch + 1) % 20 == 0:
                 embedding_analysis(model, experiment, train_loader.dataset, test_loader.dataset, epoch + 1)
+            """
 
 
 def test(model, test_loader, loss_fn, experiment, hyperparams):

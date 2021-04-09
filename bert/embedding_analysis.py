@@ -46,21 +46,25 @@ def embedding_analysis(model, experiment, train_set, test_set, epoch=None):
     polysemous_words = {
         "figure": ["figure", "figured", "figures"],
         "state": ["state", "states", "stated"],
-        "bank": ["bank", "banks", "banked"]
+        "bank": ["bank", "banks", "banked"],
+        "expect": ["expect", "expects", "expected", "expecting"],
     }
 
+    model = model.eval()
     word2id = train_set.word2id
     with torch.no_grad():
         for key in polysemous_words:
             # TODO: Find all instances of sentences that have polysemous words.
-            relevent_seqs = list()
+            seqs = list()
+            indices = list()
             texts = list()
             for seq in train_set.all_data:
                 for word in polysemous_words[key]:
                     try:
                         wid = word2id[word]
                         index = seq.index(wid)
-                        relevent_seqs.append((seq, index))
+                        seqs.append(torch.LongTensor(seq))
+                        indices.append(index)
                         texts.append(word)
                     except (KeyError, ValueError):
                         continue
@@ -69,18 +73,24 @@ def embedding_analysis(model, experiment, train_set, test_set, epoch=None):
                     try:
                         wid = word2id[word]
                         index = seq.index(wid)
-                        relevent_seqs.append((seq, index))
+                        seqs.append(torch.LongTensor(seq))
+                        indices.append(index)
                         texts.append(word)
                     except (KeyError, ValueError):
                         continue
 
             # TODO: Give these sentences as input, and obtain the specific word
             #       embedding as output.
+
+            tmp = torch.stack(seqs)
+            embeddings = model.get_embeddings( tmp.to(device) )
+
             embedding = list()
-            for seq, index in relevent_seqs:
-                embed = model.get_embeddings( torch.LongTensor(seq).unsqueeze(0).to(device) )[0][index].cpu().numpy()
-                embedding.append(embed)
+            for embed, index in zip(embeddings, indices):
+                emb = embed[index].cpu().numpy()
+                embedding.append(emb)
             embedding = np.array(embedding)
+
 
             # TODO: Use the plot_embeddings function above to plot the sentence
             #       and embeddings in two-dimensional space

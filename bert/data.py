@@ -7,7 +7,7 @@ import copy
 
 MASK = "<MASK>"
 UNK = "<UNK>"
-unk_threshold = 7
+unk_threshold = 10
 
 class MyDataset(Dataset):
     # TODO: Create masked Penn Treebank dataset.
