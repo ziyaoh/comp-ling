@@ -16,12 +16,6 @@ class BERT(nn.Module):
         self.transformer = nn.TransformerEncoder(layer, num_layers=num_layers)
         self.logits = nn.Linear(in_features=hidden_size, out_features=vocab_size)
 
-        """
-        initrange = 0.1
-        self.embedding.weight.data.uniform_(-initrange, initrange)
-        self.logits.bias.data.zero_()
-        self.logits.weight.data.uniform_(-initrange, initrange)
-        """
 
     def forward(self, x, all_masked_ind):
         # TODO: Write feed-forward step
@@ -81,11 +75,9 @@ class PositionalEncoder(nn.Module):
         self.norm = nn.LayerNorm(hidden_size)
 
     def forward(self, x):
-        position = torch.arange(0, x.shape[1]).unsqueeze(
-            0).repeat(x.shape[0], 1).to(device)
+        position = torch.arange(x.shape[1]).unsqueeze(0).repeat(x.shape[0], 1).to(device)
         pos_x = self.embed(position)
-        # input = embedded_x * self.scale + pos_x
-        embeddings = self.norm(x + pos_x)
-        return embeddings
+        emb = self.norm(x + pos_x)
+        return emb
 
 
